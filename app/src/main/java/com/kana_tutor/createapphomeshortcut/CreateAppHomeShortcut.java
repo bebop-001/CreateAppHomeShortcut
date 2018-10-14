@@ -20,9 +20,12 @@ package com.kana_tutor.createapphomeshortcut;
 
 import android.app.AlertDialog;
 import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.IntentSender;
 import android.content.SharedPreferences;
 import android.content.pm.ShortcutInfo;
 import android.content.pm.ShortcutManager;
@@ -30,39 +33,23 @@ import android.graphics.drawable.Icon;
 import android.os.Build;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
-import java.text.SimpleDateFormat;
-import java.util.Locale;
+import java.util.List;
 
 /*
  * install a shortcut from your app on the user's home screen.
  */
 public class CreateAppHomeShortcut extends AppCompatActivity {
+    private static final String TAG = CreateAppHomeShortcut.class.getSimpleName();
 
-    public static void CreateShortcut(final Context c) {
+    public void CreateShortcut(final Context c) {
         final String appName = c.getString(R.string.app_name);
         SharedPreferences prefs = c.getSharedPreferences(
                 "myPrefs", Context.MODE_PRIVATE);
 
-        // If the shortcut was already installed, just let the user know and continue.
-        long shortcutCreationTime = prefs.getLong("shortcutCreationTime", 0);
-        if (shortcutCreationTime > 0) {
-            String creationTime = new SimpleDateFormat(
-                    "MMM d, yyyy", Locale.getDefault())
-                    .format(new java.util.Date(shortcutCreationTime));
-            Toast.makeText(c
-                    , String.format("Shortcut for %s was created on %s"
-                        , appName, creationTime)
-                    , Toast.LENGTH_LONG)
-                 .show();
-            return;
-        }
-        // No shortcut yet.  Mark as done.
-        prefs.edit()
-             .putLong("shortcutCreationTime", System.currentTimeMillis())
-             .apply();
         // Ask the user if he actually wants the shortcut.
         new AlertDialog.Builder(c)
             .setTitle("Install Desktop Shortcut")
@@ -70,8 +57,7 @@ public class CreateAppHomeShortcut extends AppCompatActivity {
             .setNegativeButton("NO", null)
             .setPositiveButton("YES", new DialogInterface.OnClickListener() {
                 @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    dialog.dismiss();
+                public void onClick(final DialogInterface dialog, int which) {
                     if(Build.VERSION.SDK_INT < 26) {
                         // pre android 8 -- just do it.
                         Intent intent = new Intent(
@@ -93,12 +79,63 @@ public class CreateAppHomeShortcut extends AppCompatActivity {
                                         "Creating a desktop shortcut to app:%s", appName)
                                 , Toast.LENGTH_LONG)
                              .show();
+                        dialog.dismiss();
                     }
                     else {
                         // Android 8+ -- use the shortcut manager to install a pinned shortcut.
                         ShortcutManager shortcutManager = c.getSystemService(ShortcutManager.class);
                         if (shortcutManager != null
                                 && shortcutManager.isRequestPinShortcutSupported()) {
+
+                            // Create an inner-inner broadcast receiver so we have access
+                            // to the alert dialog passed in to the button so we can kill
+                            // the dialog.
+                            final String broadcastName = "com.kana_tutor.shortcutBroadcast";
+                            class ShortcutBroadcastReceiver extends BroadcastReceiver {
+                                @Override
+                                public void onReceive(Context context, Intent intent) {
+                                    Log.d(TAG, "ShortcutBroadcastReceiver received");
+                                    if (dialog != null)
+                                        dialog.dismiss();
+                                }
+                            }
+                            // associate the intent with the broadcast receiver.
+                            CreateAppHomeShortcut.this.registerReceiver(
+                                new ShortcutBroadcastReceiver(), new IntentFilter(broadcastName)
+                            );
+                            Intent intent = new Intent(broadcastName);
+
+                            Context c = CreateAppHomeShortcut.this;
+
+                            ShortcutInfo pinShortcutInfo = new ShortcutInfo
+                                    .Builder(c,"pinned-shortcut")
+                                    .setIcon(Icon.createWithResource(c, R.mipmap.ic_launcher_round))
+                                    .setIntent(intent)
+                                    .setShortLabel(appName)
+                                    .build();
+
+                            PendingIntent successCallback = PendingIntent.getBroadcast(
+                                    c, 0
+                                    , intent, 0);
+                            shortcutManager.requestPinShortcut(pinShortcutInfo
+                                    , successCallback.getIntentSender());
+
+
+                            /*
+                            Intent intent = new Intent(
+                                    c.getApplicationContext(), ShortcutReceiver.class);
+                            intent.setAction(Intent.ACTION_MAIN);
+                            ShortcutManagerCompat.requestPinShortcut(c
+                                , new ShortcutInfoCompat.Builder(c, "id")
+                                     .setIcon(createWithResource(c, R.drawable.qmark))
+                                     .setShortLabel(appName)
+                                     .build()
+                                , scr.getPinRequestAcceptedIntent(c).getIntentSender()
+                            );
+                            PendingIntent successCallback = scr.getPinRequestAcceptedIntent(c);
+                            */
+
+                            /*
                             Intent intent = new Intent(
                                     c.getApplicationContext(), c.getClass());
                             intent.setAction(Intent.ACTION_MAIN);
@@ -114,6 +151,7 @@ public class CreateAppHomeShortcut extends AppCompatActivity {
                             PendingIntent successCallback = PendingIntent.getBroadcast(c, 0,
                                     pinnedShortcutCallbackIntent, 0);
                             shortcutManager.requestPinShortcut(pinShortcutInfo, successCallback.getIntentSender());
+                            */
                         }
                     }
                 }
@@ -127,7 +165,7 @@ public class CreateAppHomeShortcut extends AppCompatActivity {
         findViewById(R.id.create_shortcut).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                CreateShortcut(v.getContext());
+                CreateShortcut(CreateAppHomeShortcut.this);
             }
         });
     }
