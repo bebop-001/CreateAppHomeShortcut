@@ -26,3 +26,11 @@ shortcut install callback working as an inner class BroadcastReceiver
 inside the button callback.  The app now exits and pulls itself off the
 stack when user has made their choice.
 
+Tested on these devices:
+ 1) google Nexus 7       Android 6.0.1  API=23
+ 2) samsung SM-T820      Android 8.0.0  API=26
+ 3) samsung SM-T530NU    Android 5.0.2  API=21
+ 4) Amazon KFGIWI        Android 5.1.1  API=22
+ 5) lge LGL34C           Android 4.4    API=19
+ 6) motorola XT830C      Android 4.4.4  API=19
+
