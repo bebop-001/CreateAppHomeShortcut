@@ -26,13 +26,12 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.support.v4.content.pm.ShortcutInfoCompat;
+import android.support.v4.content.pm.ShortcutManagerCompat;
 import android.support.v4.graphics.drawable.IconCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-
-import static android.support.v4.content.pm.ShortcutManagerCompat.*;
 
 /*
  * install a shortcut from your app on the user's home screen.
@@ -40,17 +39,26 @@ import static android.support.v4.content.pm.ShortcutManagerCompat.*;
 public class CreateAppHomeShortcut extends AppCompatActivity {
     private static final String TAG = CreateAppHomeShortcut.class.getSimpleName();
 
+    private void finishActivity() {
+        if(android.os.Build.VERSION.SDK_INT >= 21) {
+            CreateAppHomeShortcut.this.finishAndRemoveTask();
+        }
+        else {
+            CreateAppHomeShortcut.this.finish();
+        }
+    }
+
 private void CreateShortcut(final Context c) {
     final String appName = c.getString(R.string.app_name);
     // Ask the user if he actually wants the shortcut.
     new AlertDialog.Builder(c)
         .setTitle("Install Desktop Shortcut")
         .setMessage("Install a shortcut for this app on your home page?")
-        .setNegativeButton("NO", (final DialogInterface dialog, int which)
-            -> CreateAppHomeShortcut.this.finish())
+        .setNegativeButton("NO"
+            , (final DialogInterface dialog, int which) -> finishActivity())
         .setPositiveButton("YES", (final DialogInterface dialog, int which) -> {
                 // Android 8+ -- use the shortcut manager to install a pinned shortcut.
-            if (isRequestPinShortcutSupported(c)) {
+            if (ShortcutManagerCompat.isRequestPinShortcutSupported(c)) {
 
                 // Create an inner-inner broadcast receiver so we have access
                 // to the alert dialog passed in to the button so we can kill
@@ -60,7 +68,7 @@ private void CreateShortcut(final Context c) {
                     @Override
                     public void onReceive(Context context, Intent intent) {
                         Log.d(TAG, "ShortcutBroadcastReceiver received");
-                        CreateAppHomeShortcut.this.finish();
+                        finishActivity();
                     }
                 }
                 // associate the intent with the broadcast receiver.
@@ -79,7 +87,7 @@ private void CreateShortcut(final Context c) {
                 PendingIntent successCallback = PendingIntent.getBroadcast(
                         c, 0
                         , intent, 0);
-                requestPinShortcut(c, pinShortcutInfo
+                ShortcutManagerCompat.requestPinShortcut(c, pinShortcutInfo
                         , successCallback.getIntentSender());
             }
         })
