@@ -13,3 +13,4 @@
 .idea
 */proguard-rules.pro
 */.gitignore
+tags
