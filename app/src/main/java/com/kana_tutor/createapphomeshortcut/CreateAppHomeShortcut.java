@@ -75,18 +75,18 @@ private void CreateShortcut(final Context c) {
                 CreateAppHomeShortcut.this.registerReceiver(
                     new ShortcutBroadcastReceiver(), new IntentFilter(broadcastName)
                 );
-                Intent intent = new Intent(broadcastName);
+                Intent broadcastIntent = new Intent(broadcastName);
 
                 ShortcutInfoCompat pinShortcutInfo = new ShortcutInfoCompat
                         .Builder(c,"pinned-shortcut")
                         .setIcon(IconCompat.createWithResource(c, R.mipmap.ic_launcher_round))
-                        .setIntent(intent)
+                        .setIntent(broadcastIntent)
                         .setShortLabel(appName)
                         .build();
 
                 PendingIntent successCallback = PendingIntent.getBroadcast(
                         c, 0
-                        , intent, 0);
+                        , broadcastIntent, 0);
                 ShortcutManagerCompat.requestPinShortcut(c, pinShortcutInfo
                         , successCallback.getIntentSender());
             }
