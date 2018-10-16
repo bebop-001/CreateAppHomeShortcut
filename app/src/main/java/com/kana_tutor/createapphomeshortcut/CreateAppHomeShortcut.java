@@ -60,35 +60,29 @@ private void CreateShortcut(final Context c) {
                 // Android 8+ -- use the shortcut manager to install a pinned shortcut.
             if (ShortcutManagerCompat.isRequestPinShortcutSupported(c)) {
 
-                // Create an inner-inner broadcast receiver so we have access
-                // to the alert dialog passed in to the button so we can kill
-                // the dialog.
-                final String broadcastName = "com.kana_tutor.shortcutBroadcast";
-                class ShortcutBroadcastReceiver extends BroadcastReceiver {
+                Intent shortcutIntent = new Intent(c, CreateAppHomeShortcut.class);
+                shortcutIntent.setAction(Intent.ACTION_CREATE_SHORTCUT);
+
+                ShortcutInfoCompat shortcutInfo = new ShortcutInfoCompat
+                    .Builder(c, "shortcut")
+                    .setShortLabel(getResources().getString(R.string.app_name))
+                    .setIcon(IconCompat.createWithResource(c, R.drawable.qmark))
+                    .setIntent(shortcutIntent)
+                    .build();
+
+                registerReceiver(new BroadcastReceiver() {
                     @Override
                     public void onReceive(Context context, Intent intent) {
                         Log.d(TAG, "ShortcutBroadcastReceiver received");
+                        unregisterReceiver(this);
                         finishActivity();
                     }
                 }
-                // associate the intent with the broadcast receiver.
-                CreateAppHomeShortcut.this.registerReceiver(
-                    new ShortcutBroadcastReceiver(), new IntentFilter(broadcastName)
-                );
-                Intent broadcastIntent = new Intent(broadcastName);
-
-                ShortcutInfoCompat pinShortcutInfo = new ShortcutInfoCompat
-                        .Builder(c,"pinned-shortcut")
-                        .setIcon(IconCompat.createWithResource(c, R.mipmap.ic_launcher_round))
-                        .setIntent(broadcastIntent)
-                        .setShortLabel(appName)
-                        .build();
-
+                , new IntentFilter(Intent.ACTION_CREATE_SHORTCUT));
                 PendingIntent successCallback = PendingIntent.getBroadcast(
                         c, 0
-                        , broadcastIntent, 0);
-                ShortcutManagerCompat.requestPinShortcut(c, pinShortcutInfo
-                        , successCallback.getIntentSender());
+                        , shortcutIntent, 0);
+                ShortcutManagerCompat.requestPinShortcut(c, shortcutInfo, successCallback.getIntentSender());
             }
         })
         .show();
