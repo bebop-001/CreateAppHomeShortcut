@@ -18,6 +18,7 @@
 
 package com.kana_tutor.createapphomeshortcut;
 
+import android.annotation.SuppressLint;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -25,6 +26,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.ShortcutInfo;
 import android.content.pm.ShortcutManager;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -47,6 +49,29 @@ public class CreateAppHomeShortcut extends AppCompatActivity {
         }
         else {
             CreateAppHomeShortcut.this.finish();
+        }
+    }
+    // Wait in the background for N seconds, then send a broadcast
+    // to cause exit the activity.
+    @SuppressLint("StaticFieldLeak")
+    @SuppressWarnings("SameParameterValue")
+    class WaitFor extends AsyncTask<Void,Void,Void> {
+        final int waitPeriod;
+        private WaitFor (int N) {
+            this.waitPeriod = N * 1000;
+        }
+
+        @Override
+        protected Void doInBackground(Void... voids) {
+            try {
+                Thread.sleep(waitPeriod);
+                Intent bi = new Intent(Intent.ACTION_CREATE_SHORTCUT);
+                bi.putExtra("msg", "deny");
+                sendBroadcast(bi);
+            }
+            catch (InterruptedException ignore) {
+            }
+            return null;
         }
     }
 
@@ -73,6 +98,35 @@ public class CreateAppHomeShortcut extends AppCompatActivity {
                     finishActivity();
                 }
                 else {
+                    // this intent is used to wake up the broadcast receiver.
+                    // I couldn't get createShortcutResultIntent to work but
+                    // just a simple intent as used for a normal broadcast
+                    // intent works fine.
+                    Intent broadcastIntent
+                            = new Intent(Intent.ACTION_CREATE_SHORTCUT);
+                    broadcastIntent.putExtra("msg", "approve");
+                    // wait up to N seconds for user input, then continue on assuming user's
+                    // choice was deny.
+                    final AsyncTask<Void, Void, Void> waitFor = new WaitFor(10).execute();
+                    // create an anonymous broadcaster.  Unregister when done.
+                    registerReceiver(new BroadcastReceiver() {
+                                 @Override
+                                 public void onReceive(Context c, Intent intent) {
+                                     @SuppressWarnings("unused")
+                                     String msg = intent.getStringExtra("msg");
+                                     unregisterReceiver(this);
+                                     waitFor.cancel(true);
+                                     Log.d(TAG, String.format(
+                                             "ShortcutReceiver activity = \"$1%s\" : msg = %s"
+                                             , intent.getAction()
+                                             , (("msg" == null) ? "NULL" : "msg"))
+                                     );
+                                     finishActivity();
+                                 }
+                             }
+                            , new IntentFilter(Intent.ACTION_CREATE_SHORTCUT)
+                    );
+
                     // this is the intent that actually creates the shortcut.
                     Intent shortcutIntent
                         = new Intent(c, CreateAppHomeShortcut.class);
@@ -83,25 +137,6 @@ public class CreateAppHomeShortcut extends AppCompatActivity {
                         .setIcon(createWithResource(c, R.drawable.qmark))
                         .setIntent(shortcutIntent)
                         .build();
-                    // this intent is used to wake up the broadcast receiver.
-                    // I couldn't get createShortcutResultIntent to work but
-                    // just a simple intent as used for a normal broadcast
-                    // intent works fine.
-                    Intent broadcastIntent
-                        = new Intent(Intent.ACTION_CREATE_SHORTCUT);
-                    // create an anonymous broadcaster.  Unregister when done.
-                    registerReceiver(new BroadcastReceiver() {
-                             @Override
-                             public void onReceive(Context c, Intent intent) {
-                                 unregisterReceiver(this);
-                                 Log.d(TAG, String.format(
-                                         "ShortcutReceiver activity = \"$1%s\""
-                                         , intent.getAction()));
-                                 finishActivity();
-                             }
-                         }
-                        , new IntentFilter(Intent.ACTION_CREATE_SHORTCUT)
-                    );
                     PendingIntent successCallback = PendingIntent.getBroadcast(
                         c, 99
                         , broadcastIntent, 0);
@@ -110,6 +145,20 @@ public class CreateAppHomeShortcut extends AppCompatActivity {
                             , successCallback.getIntentSender());
                 }
             }
+        }
+        else {
+            // pre android 8 -- just do it.
+            Intent intent = new Intent(
+                    c.getApplicationContext(), c.getClass());
+            intent.setAction(Intent.ACTION_MAIN);
+            Intent action = new Intent();
+            action.putExtra(Intent.EXTRA_SHORTCUT_INTENT, intent);
+            action.putExtra(Intent.EXTRA_SHORTCUT_NAME, R.string.app_name);
+            action.putExtra(Intent.EXTRA_SHORTCUT_ICON_RESOURCE
+                    , Intent.ShortcutIconResource.fromContext(
+                            c, R.mipmap.ic_launcher_round));
+            // don't install if app is already present.
+            finishActivity();
         }
     }
     @Override
