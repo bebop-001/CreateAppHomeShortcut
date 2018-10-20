@@ -19,6 +19,7 @@
 package com.kana_tutor.createapphomeshortcut;
 
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -41,14 +42,20 @@ import static android.graphics.drawable.Icon.createWithResource;
 /*
  * install a shortcut from your app on the user's home screen.
  */
-public class CreateAppHomeShortcut extends AppCompatActivity {
-    private static final String TAG = "CreateAppHomeShortcut";
-    private void finishActivity() {
+public class CreateShortcut extends AppCompatActivity {
+    private static final String TAG = "CreateShortcut";
+    private static final String shortcutId
+        = "CreateShortcut.EXTRA_SHORTCUT_INTENT";
+    private void finishActivity(String result) {
+        Intent i = new Intent();
+        i.putExtra("rdsult", result);
+        setResult(Activity.RESULT_OK, i);
+
         if(android.os.Build.VERSION.SDK_INT >= 21) {
-           CreateAppHomeShortcut.this.finishAndRemoveTask();
+           CreateShortcut.this.finishAndRemoveTask();
         }
         else {
-            CreateAppHomeShortcut.this.finish();
+            CreateShortcut.this.finish();
         }
     }
     // Wait in the background for N seconds, then send a broadcast
@@ -65,7 +72,7 @@ public class CreateAppHomeShortcut extends AppCompatActivity {
         protected Void doInBackground(Void... voids) {
             try {
                 Thread.sleep(waitPeriod);
-                Intent bi = new Intent(Intent.ACTION_CREATE_SHORTCUT);
+                Intent bi = new Intent(shortcutId);
                 bi.putExtra("msg", "deny");
                 sendBroadcast(bi);
             }
@@ -77,11 +84,10 @@ public class CreateAppHomeShortcut extends AppCompatActivity {
 
     // Create a shortcut and exit the activity.  If the shortcut already exists,
     // just exit.
-    private void CreateShortcut(final Context c) {
+    private void createShortcut(final Context c, final String shortcutId) {
         if (Build.VERSION.SDK_INT >= 26) {
             ShortcutManager sm = getSystemService(ShortcutManager.class);
             if (sm != null && sm.isRequestPinShortcutSupported()) {
-                final String shortcutId = "StartApp";
                 boolean shortcutExists = false;
                 // We create the shortcut multiple times if given the
                 // opportunity.  If the shortcut exists, put up
@@ -95,7 +101,7 @@ public class CreateAppHomeShortcut extends AppCompatActivity {
                         )
                         , Toast.LENGTH_LONG
                     ).show();
-                    finishActivity();
+                    finishActivity("shortcutExists");
                 }
                 else {
                     // this intent is used to wake up the broadcast receiver.
@@ -103,7 +109,7 @@ public class CreateAppHomeShortcut extends AppCompatActivity {
                     // just a simple intent as used for a normal broadcast
                     // intent works fine.
                     Intent broadcastIntent
-                            = new Intent(Intent.ACTION_CREATE_SHORTCUT);
+                            = new Intent(shortcutId);
                     broadcastIntent.putExtra("msg", "approve");
                     // wait up to N seconds for user input, then continue on assuming user's
                     // choice was deny.
@@ -114,23 +120,24 @@ public class CreateAppHomeShortcut extends AppCompatActivity {
                                  public void onReceive(Context c, Intent intent) {
                                      @SuppressWarnings("unused")
                                      String msg = intent.getStringExtra("msg");
+                                     if (msg == null) msg = "NULL";
                                      unregisterReceiver(this);
                                      waitFor.cancel(true);
                                      Log.d(TAG, String.format(
                                              "ShortcutReceiver activity = \"$1%s\" : msg = %s"
                                              , intent.getAction()
-                                             , (("msg" == null) ? "NULL" : "msg"))
+                                             , msg)
                                      );
-                                     finishActivity();
+                                     finishActivity(msg);
                                  }
                              }
-                            , new IntentFilter(Intent.ACTION_CREATE_SHORTCUT)
+                            , new IntentFilter(shortcutId)
                     );
 
                     // this is the intent that actually creates the shortcut.
                     Intent shortcutIntent
-                        = new Intent(c, CreateAppHomeShortcut.class);
-                    shortcutIntent.setAction(Intent.ACTION_CREATE_SHORTCUT);
+                        = new Intent(c, CreateShortcut.class);
+                    shortcutIntent.setAction(shortcutId);
                     ShortcutInfo shortcutInfo = new ShortcutInfo
                         .Builder(c, shortcutId)
                         .setShortLabel(c.getString(R.string.app_name))
@@ -152,21 +159,26 @@ public class CreateAppHomeShortcut extends AppCompatActivity {
                     c.getApplicationContext(), c.getClass());
             intent.setAction(Intent.ACTION_MAIN);
             Intent action = new Intent();
+            //noinspection deprecation
             action.putExtra(Intent.EXTRA_SHORTCUT_INTENT, intent);
-            action.putExtra(Intent.EXTRA_SHORTCUT_NAME, R.string.app_name);
+            //noinspection deprecation
+            action.putExtra(Intent.EXTRA_SHORTCUT_NAME, shortcutId);
+            //noinspection deprecation
             action.putExtra(Intent.EXTRA_SHORTCUT_ICON_RESOURCE
                     , Intent.ShortcutIconResource.fromContext(
                             c, R.mipmap.ic_launcher_round));
             // don't install if app is already present.
-            finishActivity();
+            finishActivity("approved");
         }
     }
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.create_app_home_shortcut);
-        findViewById(R.id.create_shortcut).setOnClickListener(
-            (View v) -> CreateShortcut(CreateAppHomeShortcut.this)
-        );
+        setContentView(R.layout.create_shortcut);
+        Intent i = getIntent();
+        String shortcutId = i.getStringExtra("shortcutId");
+        setIntent(null);
+        // i = getIntent();
+        createShortcut(this, shortcutId);
     }
 }
