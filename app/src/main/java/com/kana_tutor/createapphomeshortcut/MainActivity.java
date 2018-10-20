@@ -8,21 +8,18 @@ import android.util.Log;
 import android.view.View;
 
 public class MainActivity extends AppCompatActivity {
-    private static String TAG = "MainActivity";
+    private static final String TAG = "MainActivity";
 
-    public static final int CREATE_SHORTCUT = 99;
+    private static final int CREATE_SHORTCUT = 99;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main_activity);
-        findViewById(R.id.create_shortcut).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent i = new Intent(MainActivity.this, CreateShortcut.class);
-                i.putExtra("shortcutId", getString(R.string.app_name));
-                startActivityForResult(i, CREATE_SHORTCUT);
-            }
+        findViewById(R.id.create_shortcut).setOnClickListener((View v) -> {
+            Intent i = new Intent(MainActivity.this, CreateShortcut.class);
+            i.putExtra("shortcutId", getString(R.string.app_name));
+            startActivityForResult(i, CREATE_SHORTCUT);
         });
     }
 
