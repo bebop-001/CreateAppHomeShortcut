@@ -20,6 +20,7 @@ package com.kana_tutor.createapphomeshortcut;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -32,7 +33,6 @@ import android.os.Build;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.View;
 import android.widget.Toast;
 
 import java.util.List;
@@ -48,7 +48,7 @@ public class CreateShortcut extends AppCompatActivity {
         = "CreateShortcut.EXTRA_SHORTCUT_INTENT";
     private void finishActivity(String result) {
         Intent i = new Intent();
-        i.putExtra("rdsult", result);
+        i.putExtra("result", result);
         setResult(Activity.RESULT_OK, i);
 
         if(android.os.Build.VERSION.SDK_INT >= 21) {
@@ -171,6 +171,18 @@ public class CreateShortcut extends AppCompatActivity {
             finishActivity("approved");
         }
     }
+    private void promptForShortcut(Context c, String shortcutId) {
+        String promptMess = getString(
+            R.string.promptForShortcut, getString(R.string.app_name));
+        new AlertDialog.Builder(c)
+           .setTitle(R.string.promptForShortcutTitle)
+           .setMessage(promptMess)
+           .setNegativeButton(R.string.no
+               , (dialog, which) -> finishActivity("deny"))
+           .setPositiveButton(R.string.yes
+               , (dialog, which) -> createShortcut(c, shortcutId))
+           .show();
+    }
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -179,6 +191,6 @@ public class CreateShortcut extends AppCompatActivity {
         String shortcutId = i.getStringExtra("shortcutId");
         setIntent(null);
         // i = getIntent();
-        createShortcut(this, shortcutId);
+        promptForShortcut(this, shortcutId);
     }
 }
