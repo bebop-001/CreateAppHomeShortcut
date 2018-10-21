@@ -35,5 +35,5 @@ public class MainActivity extends AppCompatActivity {
                 //Write your code if there's no result
             }
         }
-    }//onActivityResult
+    }
 }
