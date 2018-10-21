@@ -136,7 +136,7 @@ public class CreateShortcut extends AppCompatActivity {
 
                     // this is the intent that actually creates the shortcut.
                     Intent shortcutIntent
-                        = new Intent(c, CreateShortcut.class);
+                        = new Intent(c, MainActivity.class);
                     shortcutIntent.setAction(shortcutId);
                     ShortcutInfo shortcutInfo = new ShortcutInfo
                         .Builder(c, shortcutId)
@@ -155,8 +155,9 @@ public class CreateShortcut extends AppCompatActivity {
         }
         else {
             // pre android 8 -- just do it.
+            // Intent for class we want started by shortcut.
             Intent intent = new Intent(
-                    c.getApplicationContext(), c.getClass());
+                    c.getApplicationContext(), MainActivity.class);
             intent.setAction(Intent.ACTION_MAIN);
             Intent action = new Intent();
             //noinspection deprecation
