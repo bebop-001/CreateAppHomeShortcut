@@ -17,8 +17,6 @@
  */
 
 package com.kana_tutor.createapphomeshortcut;
-
-import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.PendingIntent;
@@ -39,29 +37,22 @@ import java.util.List;
 
 import static android.graphics.drawable.Icon.createWithResource;
 
-/*
- * install a shortcut from your app on the user's home screen.
- */
 public class CreateShortcut extends AppCompatActivity {
     private static final String TAG = "CreateShortcut";
-    private static final String shortcutId
-        = "CreateShortcut.EXTRA_SHORTCUT_INTENT";
-    private void finishActivity(String result) {
+
+    private String shortcutId;
+    private void finishActivity (String result) {
         Intent i = new Intent();
         i.putExtra("result", result);
         setResult(Activity.RESULT_OK, i);
 
         if(android.os.Build.VERSION.SDK_INT >= 21) {
-           CreateShortcut.this.finishAndRemoveTask();
+            CreateShortcut.this.finishAndRemoveTask();
         }
         else {
             CreateShortcut.this.finish();
         }
     }
-    // Wait in the background for N seconds, then send a broadcast
-    // to cause exit the activity.
-    @SuppressLint("StaticFieldLeak")
-    @SuppressWarnings("SameParameterValue")
     class WaitFor extends AsyncTask<Void,Void,Void> {
         final int waitPeriod;
         private WaitFor (int N) {
@@ -81,10 +72,7 @@ public class CreateShortcut extends AppCompatActivity {
             return null;
         }
     }
-
-    // Create a shortcut and exit the activity.  If the shortcut already exists,
-    // just exit.
-    private void createShortcut(final Context c, final String shortcutId) {
+    private void postApi26CreateShortcut(Context c, Class scClass) {
         if (Build.VERSION.SDK_INT >= 26) {
             ShortcutManager sm = getSystemService(ShortcutManager.class);
             if (sm != null && sm.isRequestPinShortcutSupported()) {
@@ -98,8 +86,8 @@ public class CreateShortcut extends AppCompatActivity {
                 if (shortcutExists) {
                     Toast.makeText(c , String.format(
                             "Shortcut %s already exists.", shortcutId
-                        )
-                        , Toast.LENGTH_LONG
+                            )
+                            , Toast.LENGTH_LONG
                     ).show();
                     finishActivity("shortcutExists");
                 }
@@ -111,87 +99,97 @@ public class CreateShortcut extends AppCompatActivity {
                     Intent broadcastIntent
                             = new Intent(shortcutId);
                     broadcastIntent.putExtra("msg", "approve");
-                    // wait up to N seconds for user input, then continue on assuming user's
-                    // choice was deny.
-                    final AsyncTask<Void, Void, Void> waitFor = new WaitFor(10).execute();
+                    // wait up to N seconds for user input, then continue
+                    // on assuming user's choice was deny.
+                    final AsyncTask<Void, Void, Void> waitFor
+                            = new WaitFor(10).execute();
                     // create an anonymous broadcaster.  Unregister when done.
                     registerReceiver(new BroadcastReceiver() {
-                                 @Override
-                                 public void onReceive(Context c, Intent intent) {
-                                     @SuppressWarnings("unused")
-                                     String msg = intent.getStringExtra("msg");
-                                     if (msg == null) msg = "NULL";
-                                     unregisterReceiver(this);
-                                     waitFor.cancel(true);
-                                     Log.d(TAG, String.format(
-                                             "ShortcutReceiver activity = \"$1%s\" : msg = %s"
-                                             , intent.getAction()
-                                             , msg)
-                                     );
-                                     finishActivity(msg);
-                                 }
-                             }
+                                         @Override
+                                         public void onReceive(Context c, Intent intent) {
+                                             @SuppressWarnings("unused")
+                                             String msg = intent.getStringExtra("msg");
+                                             if (msg == null) msg = "NULL";
+                                             unregisterReceiver(this);
+                                             waitFor.cancel(true);
+                                             Log.d(TAG, String.format(
+                                                     "ShortcutReceiver activity = \"$1%s\" : msg = %s"
+                                                     , intent.getAction()
+                                                     , msg)
+                                             );
+                                             finishActivity(msg);
+                                         }
+                                     }
                             , new IntentFilter(shortcutId)
                     );
 
                     // this is the intent that actually creates the shortcut.
                     Intent shortcutIntent
-                        = new Intent(c, MainActivity.class);
+                            = new Intent(c, scClass);
                     shortcutIntent.setAction(shortcutId);
                     ShortcutInfo shortcutInfo = new ShortcutInfo
-                        .Builder(c, shortcutId)
-                        .setShortLabel(c.getString(R.string.app_name))
-                        .setIcon(createWithResource(c, R.drawable.qmark))
-                        .setIntent(shortcutIntent)
-                        .build();
+                            .Builder(c, shortcutId)
+                            .setShortLabel(c.getString(R.string.app_name))
+                            .setIcon(createWithResource(c, R.drawable.qmark))
+                            .setIntent(shortcutIntent)
+                            .build();
                     PendingIntent successCallback = PendingIntent.getBroadcast(
-                        c, 99
-                        , broadcastIntent, 0);
+                            c, 99
+                            , broadcastIntent, 0);
                     // Shortcut gets created here.
                     sm.requestPinShortcut(shortcutInfo
                             , successCallback.getIntentSender());
                 }
             }
         }
-        else {
-            // pre android 8 -- just do it.
-            // Intent for class we want started by shortcut.
-            Intent intent = new Intent(
-                    c.getApplicationContext(), MainActivity.class);
-            intent.setAction(Intent.ACTION_MAIN);
-            Intent action = new Intent();
-            //noinspection deprecation
-            action.putExtra(Intent.EXTRA_SHORTCUT_INTENT, intent);
-            //noinspection deprecation
-            action.putExtra(Intent.EXTRA_SHORTCUT_NAME, shortcutId);
-            //noinspection deprecation
-            action.putExtra(Intent.EXTRA_SHORTCUT_ICON_RESOURCE
-                    , Intent.ShortcutIconResource.fromContext(
-                            c, R.mipmap.ic_launcher_round));
-            // don't install if app is already present.
-            finishActivity("approved");
-        }
     }
-    private void promptForShortcut(Context c, String shortcutId) {
+    private void preApi26CreateShortcut (Activity activity, Class scClass) {
+        Intent shortcutIntent = new Intent(getApplicationContext(), scClass);
+        shortcutIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        shortcutIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+
+        Intent addIntent = new Intent();
+        addIntent.putExtra(Intent.EXTRA_SHORTCUT_INTENT, shortcutIntent);
+        addIntent.putExtra(Intent.EXTRA_SHORTCUT_NAME, activity.getString(R.string.app_name));
+        Intent.ShortcutIconResource icon =
+                Intent.ShortcutIconResource.fromContext(activity, R.drawable.qmark);
+        addIntent.putExtra(Intent.EXTRA_SHORTCUT_ICON_RESOURCE, icon);
+        addIntent.setAction("com.android.launcher.action.INSTALL_SHORTCUT");
+        addIntent.putExtra("duplicate", false);
+        activity.sendBroadcast(addIntent);
+        Toast.makeText(activity
+                , "Created pre-api26 shortcut"
+                , Toast.LENGTH_LONG)
+             .show();
+        finishActivity("allow");
+    }
+    private void createShortcut(Activity activity, Class scClass) {
+        if (Build.VERSION.SDK_INT >= 26)
+            postApi26CreateShortcut(activity, scClass);
+        else
+            preApi26CreateShortcut(activity, scClass);
+    }
+    private void promptForShortcut(Activity activity, Class scClass) {
         String promptMess = getString(
-            R.string.promptForShortcut, getString(R.string.app_name));
-        new AlertDialog.Builder(c)
-           .setTitle(R.string.promptForShortcutTitle)
-           .setMessage(promptMess)
-           .setNegativeButton(R.string.no
-               , (dialog, which) -> finishActivity("deny"))
-           .setPositiveButton(R.string.yes
-               , (dialog, which) -> createShortcut(c, shortcutId))
-           .show();
+                R.string.promptForShortcut, getString(R.string.app_name));
+        new AlertDialog.Builder(activity)
+                .setTitle(R.string.promptForShortcutTitle)
+                .setMessage(promptMess)
+                .setNegativeButton(R.string.NO
+                        , (dialog, which) -> finishActivity("deny"))
+                .setPositiveButton(R.string.YES
+                        , (dialog, which) -> createShortcut(activity, scClass))
+                .show();
     }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.create_shortcut);
         Intent i = getIntent();
-        String shortcutId = i.getStringExtra("shortcutId");
+        String scid = i.getStringExtra("shortcutId");
+        shortcutId = ((scid == null) ? "NULL" : scid);
         setIntent(null);
-        // i = getIntent();
-        promptForShortcut(this, shortcutId);
+        promptForShortcut(CreateShortcut.this, MainActivity.class);
     }
 }

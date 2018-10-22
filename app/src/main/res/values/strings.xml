@@ -8,6 +8,6 @@
         Do you want a desktop shortcut created for \"%1$s\"?"
     </string>
 
-    <string name="yes">YES</string>
-    <string name="no">NO</string>
+    <string name="YES">YES</string>
+    <string name="NO">NO</string>
 </resources>
